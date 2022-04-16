@@ -2,6 +2,9 @@
 {-# LANGUAGE StandaloneDeriving #-}
 module LiftTH where
 
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
+
 instance Lift Bytes where
     lift _ = error "Cannot lift Bytes."
     liftTyped _ = error "Cannot lift Bytes."

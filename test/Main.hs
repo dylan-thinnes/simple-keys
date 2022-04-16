@@ -14,6 +14,7 @@ import Data.Functor.Foldable.TH
 import Text.Show.Deriving
 
 import Data.SimpleKeys
+import LiftTH
 
 main :: IO ()
 main = pure ()

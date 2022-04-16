@@ -258,7 +258,7 @@ annKeyDeep t = cata go t []
 
 overAnn
   :: forall base ann ann'
-   . (NthConstructorName base, Functor base)
+   . Functor base
   => (ann -> ann')
   -> Ann ann base -> Ann ann' base
 overAnn editAnn = hoist $ \(Pair (Const ann) f) -> Pair (Const (editAnn ann)) f

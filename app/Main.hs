@@ -221,6 +221,8 @@ annKey datatype = evalState (traverse go datatype) 0
       pure (key, a)
 
 type DeepKey f = [Key f]
+type AnnF ann f = Product (Const ann) f
+type Ann ann f = Fix (AnnF ann f)
 
 traversalDeepKey
   :: forall t f m a
@@ -245,12 +247,11 @@ getDeepKey = L.preview . traversalDeepKey
 annKeyDeep
   :: forall t base
    . (Recursive t, base ~ Base t, NthConstructor1 base, Traversable base)
-  => t -> Fix (Product (Const (DeepKey base)) base)
+  => t -> Ann (DeepKey base) base
 annKeyDeep t = cata go t []
   where
-    go :: base ([Key base] -> Fix (Product (Const (DeepKey base)) base))
-       -> [Key base]
-       -> Fix (Product (Const (DeepKey base)) base)
+    go :: base (DeepKey base -> Ann (DeepKey base) base)
+             -> DeepKey base -> Ann (DeepKey base) base
     go base keys = Fix (Pair (Const keys) (fmap passKeys $ annKey base))
       where
         passKeys (keyHead, cont) = cont (keyHead : keys)
@@ -259,6 +260,5 @@ overAnn
   :: forall base ann ann'
    . (NthConstructorName base, Functor base)
   => (ann -> ann')
-  -> Fix (Product (Const ann) base)
-  -> Fix (Product (Const ann') base)
+  -> Ann ann base -> Ann ann' base
 overAnn editAnn = hoist $ \(Pair (Const ann) f) -> Pair (Const (editAnn ann)) f

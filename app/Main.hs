@@ -15,9 +15,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 module Main where
 
-import qualified GHC.Generics as G
+import GHC.Generics qualified as G
 import GHC.TypeLits
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
@@ -30,6 +31,7 @@ import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
 import Data.Fix (Fix(..))
 import Text.Show.Deriving
+import Control.Lens qualified as L
 
 main :: IO ()
 main = putStrLn "Hello, Haskell!"
@@ -185,11 +187,11 @@ instance NthConstructorName t => Show (Debug (Key t)) where
 instance Show (Debug t) => Show (Debug [t]) where
   show (Debug keys) = show $ map Debug keys
 
-modifyByM
+traversalKey
   :: forall f m a
    . (NthConstructor1 f, Traversable f, Applicative m)
   => Key f -> (a -> m a) -> f a -> m (f a)
-modifyByM Key { constructor, field } handler datatype
+traversalKey Key { constructor, field } handler datatype
   | constructorToN1 datatype == constructor
   = let go :: a -> State Int (m a)
         go a = do
@@ -199,18 +201,11 @@ modifyByM Key { constructor, field } handler datatype
     in
     sequenceA $ evalState (traverse go datatype) 0
 
-modifyBy
-  :: forall f a
-   . (NthConstructor1 f, Traversable f)
-  => Key f -> (a -> a) -> f a -> f a
-modifyBy key handler =
-  runIdentity . modifyByM key (Identity . handler)
+modifyKey :: (NthConstructor1 f, Traversable f) => Key f -> (a -> a) -> f a -> f a
+modifyKey = L.over . traversalKey
 
-getBy
-  :: forall f a
-   . (NthConstructor1 f, Traversable f)
-  => Key f -> f a -> Maybe a
-getBy key = getFirst . getConst . modifyByM key (Const . First . Just)
+getKey :: (NthConstructor1 f, Traversable f) => Key f -> f a -> Maybe a
+getKey = L.preview . traversalKey
 
 annKey
   :: forall f a
@@ -225,17 +220,37 @@ annKey datatype = evalState (traverse go datatype) 0
       let key = Key (constructorToN1 datatype) field
       pure (key, a)
 
-type ExpKey = [Key ExpF]
+type DeepKey f = [Key f]
+
+traversalDeepKey
+  :: forall t f m a
+   . (Base t ~ f, Applicative m, Corecursive t, Recursive t, NthConstructor1 f, Traversable f)
+  => DeepKey f -> (t -> m t) -> t -> m t
+traversalDeepKey [] handler = handler
+traversalDeepKey (key:rest) handler =
+  fmap embed . traversalKey key (traversalDeepKey rest handler) . project
+
+modifyDeepKey
+  :: forall t f
+   . (Base t ~ f, Corecursive t, Recursive t, NthConstructor1 f, Traversable f)
+  => DeepKey f -> (t -> t) -> t -> t
+modifyDeepKey = L.over . traversalDeepKey
+
+getDeepKey
+  :: forall t f
+   . (Base t ~ f, Corecursive t, Recursive t, NthConstructor1 f, Traversable f)
+  => DeepKey f -> t -> Maybe t
+getDeepKey = L.preview . traversalDeepKey
 
 annKeyDeep
   :: forall t base
    . (Recursive t, base ~ Base t, NthConstructor1 base, Traversable base)
-  => t -> Fix (Product (Const [Key base]) base)
+  => t -> Fix (Product (Const (DeepKey base)) base)
 annKeyDeep t = cata go t []
   where
-    go :: base ([Key base] -> Fix (Product (Const [Key base]) base))
+    go :: base ([Key base] -> Fix (Product (Const (DeepKey base)) base))
        -> [Key base]
-       -> Fix (Product (Const [Key base]) base)
+       -> Fix (Product (Const (DeepKey base)) base)
     go base keys = Fix (Pair (Const keys) (fmap passKeys $ annKey base))
       where
         passKeys (keyHead, cont) = cont (keyHead : keys)

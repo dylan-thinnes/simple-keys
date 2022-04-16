@@ -248,7 +248,7 @@ annKeyDeep
   :: forall t base
    . (Recursive t, base ~ Base t, NthConstructor1 base, Traversable base)
   => t -> Ann (DeepKey base) base
-annKeyDeep t = cata go t []
+annKeyDeep t = overAnn reverse $ cata go t []
   where
     go :: base (DeepKey base -> Ann (DeepKey base) base)
              -> DeepKey base -> Ann (DeepKey base) base

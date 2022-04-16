@@ -1,8 +1,6 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PolyKinds #-}
@@ -12,16 +10,12 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 module Data.SimpleKeys where
 
 import GHC.Generics qualified as G
 import GHC.TypeLits
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax
 import Control.Monad.State hiding (lift)
 import Control.Monad.Identity
 import Data.Monoid (First(..))
@@ -30,59 +24,7 @@ import Data.Functor.Product
 import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
 import Data.Fix (Fix(..))
-import Text.Show.Deriving
 import Control.Lens qualified as L
-
-instance Lift Bytes where
-    lift _ = error "Cannot lift Bytes."
-    liftTyped _ = error "Cannot lift Bytes."
-
-deriving instance Lift AnnTarget
-deriving instance Lift RuleBndr
-deriving instance Lift InjectivityAnn
-deriving instance Lift Phases
-deriving instance Lift FamilyResultSig
-deriving instance Lift RuleMatch
-deriving instance Lift Inline
-deriving instance Lift FixityDirection
-deriving instance Lift Safety
-deriving instance Lift Callconv
-deriving instance Lift SourceStrictness
-deriving instance Lift SourceUnpackedness
-deriving instance Lift PkgName
-deriving instance Lift NameSpace
-deriving instance Lift PatSynDir
-deriving instance Lift PatSynArgs
-deriving instance Lift DerivStrategy
-deriving instance Lift Role
-deriving instance Lift TypeFamilyHead
-deriving instance Lift TySynEqn
-deriving instance Lift Pragma
-deriving instance Lift Fixity
-deriving instance Lift Foreign
-deriving instance Lift Overlap
-deriving instance Lift FunDep
-deriving instance Lift Bang
-deriving instance Lift ModName
-deriving instance Lift DerivClause
-deriving instance Lift Con
-deriving instance Lift Clause
-deriving instance Lift Body
-deriving instance Lift TyLit
-deriving instance Lift TyVarBndr
-deriving instance Lift NameFlavour
-deriving instance Lift OccName
-deriving instance Lift Range
-deriving instance Lift Stmt
-deriving instance Lift Dec
-deriving instance Lift Guard
-deriving instance Lift Match
-deriving instance Lift Pat
-deriving instance Lift Type
-deriving instance Lift Lit
-deriving instance Lift Name
-deriving instance Lift Exp
-deriving instance Lift Info
 
 -- Nth constructors
 class NthConstructor t where
@@ -142,32 +84,8 @@ instance (KnownNat (Size f), GNthConstructorName f, GNthConstructorName g) => GN
 
 data Proxy n = Proxy
 
--- Use keys
-makeBaseFunctor ''Exp
-deriving instance Show a => Show (ExpF a)
-deriving instance Eq a => Eq (ExpF a)
-deriving instance Ord a => Ord (ExpF a)
-deriving instance G.Generic a => G.Generic (ExpF a)
-deriving instance G.Generic1 ExpF
-deriveShow1 ''ExpF
-instance NthConstructor1 ExpF
-instance NthConstructorName ExpF
-
-data X a = A a | B Char | C Int Int
-  deriving (Show, Eq, Ord, G.Generic, G.Generic1, Functor, Foldable, Traversable)
-
-instance NthConstructor (X a)
-instance NthConstructor1 X
-
-data LC
-  = Lit Integer
-  | Var String
-  | App LC LC
-  | Abs String LC
-  deriving (Show, Eq, Ord, G.Generic)
-
 data Key t = Key { constructor :: Int, field :: Int }
-  deriving (Show, Eq, Ord, G.Generic)
+  deriving (Show, Eq, Ord)
 
 newtype Debug t = Debug { unDebug :: t }
 

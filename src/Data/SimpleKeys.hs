@@ -16,7 +16,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ImportQualifiedPost #-}
-module Main where
+module Data.SimpleKeys where
 
 import GHC.Generics qualified as G
 import GHC.TypeLits
@@ -32,9 +32,6 @@ import Data.Functor.Foldable.TH
 import Data.Fix (Fix(..))
 import Text.Show.Deriving
 import Control.Lens qualified as L
-
-main :: IO ()
-main = putStrLn "Hello, Haskell!"
 
 instance Lift Bytes where
     lift _ = error "Cannot lift Bytes."

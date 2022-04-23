@@ -27,58 +27,83 @@ import Control.Lens qualified as L
 -- Nth constructors
 class NthConstructor t where
   constructorToN :: t -> Int
-  default constructorToN :: (G.Generic t, GNthConstructor (G.Rep t)) => t -> Int
-  constructorToN = gConstructorToN . G.from
+  default constructorToN
+    :: forall rep
+     . (G.Generic t, rep ~ G.Rep t, GNthConstructor rep, SumsToBinTree rep)
+    => t -> Int
+  constructorToN t = gConstructorToN (G.from t) (sumsToBinTree (Proxy @(G.Rep t)))
 
 class NthConstructor1 f where
   constructorToN1 :: f a -> Int
-  default constructorToN1 :: (G.Generic1 f, GNthConstructor (G.Rep1 f)) => f a -> Int
-  constructorToN1 = gConstructorToN . G.from1
+  default constructorToN1
+    :: forall rep a
+     . (G.Generic1 f, rep ~ G.Rep1 f, GNthConstructor rep, SumsToBinTree rep)
+    => f a -> Int
+  constructorToN1 fa = gConstructorToN (G.from1 fa) (sumsToBinTree (Proxy @rep))
 
 class GNthConstructor f where
-  gConstructorToN :: f a -> Int
+  gConstructorToN :: f a -> SizedBinTree -> Int
 
-instance (KnownNat (Size f), GNthConstructor f, GNthConstructor g) => GNthConstructor (f G.:+: g) where
-  gConstructorToN (G.L1 f) = gConstructorToN f
-  gConstructorToN (G.R1 g) = size (Proxy @f) + gConstructorToN g
+instance (GNthConstructor f, GNthConstructor g) => GNthConstructor (f G.:+: g) where
+  gConstructorToN (G.L1 f) (Node _ l r) = gConstructorToN f l
+  gConstructorToN (G.R1 g) (Node _ l r) = sizeBT l + gConstructorToN g r
+  gConstructorToN _ _ = error "gConstructorToN: binary tree mismatch"
 
 instance GNthConstructor (G.C1 meta g) where
-  gConstructorToN _ = 0
+  gConstructorToN _ _ = 0
 
 instance GNthConstructor g => GNthConstructor (G.D1 meta g) where
   gConstructorToN = gConstructorToN . G.unM1
 
-type family Size (rep :: k) :: Nat
+data SizedBinTree = Node Int SizedBinTree SizedBinTree | Leaf
+  deriving (Show, Eq, Ord)
 
-type instance Size (G.D1 meta f) = Size f
-type instance Size (G.C1 meta g) = 1
-type instance Size (f G.:+: g) = Size f + Size g
+sizeBT :: SizedBinTree -> Int
+sizeBT Leaf = 1
+sizeBT (Node size _ _) = size
 
-size :: forall f n a. (KnownNat n, Size f ~ n) => Proxy f -> Int
-size _ = fromIntegral $ natVal (Proxy @n)
+mkNode :: SizedBinTree -> SizedBinTree -> SizedBinTree
+mkNode l r = Node (sizeBT l + sizeBT r) l r
+
+class SumsToBinTree f where
+  sumsToBinTree :: Proxy f -> SizedBinTree
+
+instance SumsToBinTree f => SumsToBinTree (G.D1 meta f) where
+  sumsToBinTree _ = sumsToBinTree (Proxy @f)
+
+instance (SumsToBinTree f, SumsToBinTree g) => SumsToBinTree (f G.:+: g) where
+  sumsToBinTree _ = mkNode (sumsToBinTree (Proxy @f)) (sumsToBinTree (Proxy @g))
+
+instance SumsToBinTree (G.C1 meta f) where
+  sumsToBinTree _ = Leaf
 
 class NthConstructorName f where
   nthConstructorName :: Proxy f -> Int -> String
-  default nthConstructorName :: (G.Generic1 f, GNthConstructorName (G.Rep1 f)) => Proxy f -> Int -> String
-  nthConstructorName proxy = gNthConstructorName (Proxy @(G.Rep1 f))
+  default nthConstructorName
+    :: forall rep
+     . (G.Generic1 f, rep ~ G.Rep1 f, GNthConstructorName rep, SumsToBinTree rep)
+    => Proxy f -> Int -> String
+  nthConstructorName proxy =
+    let proxy = Proxy @rep
+     in gNthConstructorName proxy (sumsToBinTree proxy)
 
 class GNthConstructorName f where
-  gNthConstructorName :: Proxy f -> Int -> String
+  gNthConstructorName :: Proxy f -> SizedBinTree -> Int -> String
 
 instance GNthConstructorName g => GNthConstructorName (G.D1 meta g) where
-  gNthConstructorName proxy i = gNthConstructorName (Proxy @g) i
+  gNthConstructorName proxy = gNthConstructorName (Proxy @g)
 
 instance KnownSymbol name => GNthConstructorName (G.C1 (G.MetaCons name fixity bool) g) where
-  gNthConstructorName _ 0 = symbolVal (Proxy @name)
-  gNthConstructorName _ n = error $ "Tried to get gNthConstructorName for C1 with nonzero index " ++ show n
+  gNthConstructorName _ _ 0 = symbolVal (Proxy @name)
+  gNthConstructorName _ _ n = error $ "Tried to get gNthConstructorName for C1 with nonzero index " ++ show n
 
-instance (KnownNat (Size f), GNthConstructorName f, GNthConstructorName g) => GNthConstructorName (f G.:+: g) where
-  gNthConstructorName _ i =
-    let leftSize = size (Proxy @f)
+instance (GNthConstructorName f, GNthConstructorName g) => GNthConstructorName (f G.:+: g) where
+  gNthConstructorName _ (Node _ l r) i =
+    let leftSize = sizeBT l
     in
     if i < leftSize
-       then gNthConstructorName (Proxy @f) i
-       else gNthConstructorName (Proxy @g) (i - leftSize)
+       then gNthConstructorName (Proxy @f) l i
+       else gNthConstructorName (Proxy @g) r (i - leftSize)
 
 data Proxy n = Proxy
 

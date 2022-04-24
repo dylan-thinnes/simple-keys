@@ -22,7 +22,6 @@ import Data.Functor.Product
 import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
 import Data.Fix (Fix(..))
-import Control.Lens qualified as L
 
 -- Nth constructors
 class NthConstructor t where
@@ -139,12 +138,6 @@ traversalKey Key { constructor, field } handler datatype
     in
     sequenceA $ evalState (traverse go datatype) 0
 
-modifyKey :: (NthConstructor1 f, Traversable f) => Key f -> (a -> a) -> f a -> f a
-modifyKey = L.over . traversalKey
-
-getKey :: (NthConstructor1 f, Traversable f) => Key f -> f a -> Maybe a
-getKey = L.preview . traversalKey
-
 annKey
   :: forall f a
    . (NthConstructor1 f, Traversable f)
@@ -169,18 +162,6 @@ traversalDeepKey
 traversalDeepKey [] handler = handler
 traversalDeepKey (key:rest) handler =
   fmap embed . traversalKey key (traversalDeepKey rest handler) . project
-
-modifyDeepKey
-  :: forall t f
-   . (Base t ~ f, Corecursive t, Recursive t, NthConstructor1 f, Traversable f)
-  => DeepKey f -> (t -> t) -> t -> t
-modifyDeepKey = L.over . traversalDeepKey
-
-getDeepKey
-  :: forall t f
-   . (Base t ~ f, Corecursive t, Recursive t, NthConstructor1 f, Traversable f)
-  => DeepKey f -> t -> Maybe t
-getDeepKey = L.preview . traversalDeepKey
 
 annKeyDeep
   :: forall t base

@@ -31,6 +31,8 @@ instance NthConstructor1 ExpF
 instance NthConstructorName ExpF
 
 x = $(lift =<< [| 3 + 4 |])
+y = $(lift =<< [| 3 * 4 + 5 * 6 |])
+z = $(lift =<< [| f 1 2 3 4 5 |])
 
 data X a = A a | B Char | C Int Int
   deriving (Show, Eq, Ord, G.Generic, G.Generic1, Functor, Foldable, Traversable)
